@@ -10,10 +10,49 @@ def process_message(phone: str, text: str) -> str:
     estado = session["estado"]
     text_lower = text.lower().strip()
 
+    # Comando cancelar
+    if text_lower == "cancelar":
+        sessions[phone]["estado"] = "cancelar_nombre"
+        return "Decime tu nombre por favor"
+
     # Comando /setup
     if text.strip() == "/setup":
         sessions[phone]["estado"] = "setup_nombre"
         return "Perfecto 👍 ¿Cómo se llama tu negocio?"
+
+    # Estado cancelar_nombre
+    if estado == "cancelar_nombre":
+        nombre_cliente = text
+
+        db = SessionLocal()
+        comercio = db.query(Comercio).filter_by(telefono_dueno=phone).first()
+
+        if comercio:
+            turno = db.query(Turno).filter_by(
+                comercio_id=comercio.id,
+                cliente_nombre=nombre_cliente
+            ).order_by(Turno.id.desc()).first()
+
+            if turno:
+                fecha = turno.fecha
+                hora = turno.hora
+                db.delete(turno)
+                db.commit()
+                db.close()
+
+                sessions[phone]["estado"] = "inicio"
+                sessions[phone]["data"] = {}
+                return f"Tu turno del {fecha} a las {hora} fue cancelado ✅"
+            else:
+                db.close()
+                sessions[phone]["estado"] = "inicio"
+                sessions[phone]["data"] = {}
+                return "No encontré turnos a tu nombre 😕"
+        else:
+            db.close()
+            sessions[phone]["estado"] = "inicio"
+            sessions[phone]["data"] = {}
+            return "No encontré turnos a tu nombre 😕"
 
     # Estado setup_nombre
     if estado == "setup_nombre":
