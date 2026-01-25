@@ -15,6 +15,11 @@ def process_message(phone: str, text: str) -> str:
         sessions[phone]["estado"] = "cancelar_nombre"
         return "Decime tu nombre por favor"
 
+    # Comando reprogramar
+    if text_lower == "reprogramar":
+        sessions[phone]["estado"] = "reprogramar_nombre"
+        return "Decime tu nombre por favor"
+
     # Comando /setup
     if text.strip() == "/setup":
         sessions[phone]["estado"] = "setup_nombre"
@@ -43,6 +48,38 @@ def process_message(phone: str, text: str) -> str:
                 sessions[phone]["estado"] = "inicio"
                 sessions[phone]["data"] = {}
                 return f"Tu turno del {fecha} a las {hora} fue cancelado ✅"
+            else:
+                db.close()
+                sessions[phone]["estado"] = "inicio"
+                sessions[phone]["data"] = {}
+                return "No encontré turnos a tu nombre 😕"
+        else:
+            db.close()
+            sessions[phone]["estado"] = "inicio"
+            sessions[phone]["data"] = {}
+            return "No encontré turnos a tu nombre 😕"
+
+    # Estado reprogramar_nombre
+    if estado == "reprogramar_nombre":
+        nombre_cliente = text
+
+        db = SessionLocal()
+        comercio = db.query(Comercio).filter_by(telefono_dueno=phone).first()
+
+        if comercio:
+            turno = db.query(Turno).filter_by(
+                comercio_id=comercio.id,
+                cliente_nombre=nombre_cliente
+            ).order_by(Turno.id.desc()).first()
+
+            if turno:
+                db.delete(turno)
+                db.commit()
+                db.close()
+
+                sessions[phone]["estado"] = "esperando_dia"
+                sessions[phone]["data"] = {}
+                return "Perfecto 👍 ¿Qué día te gustaría ahora?"
             else:
                 db.close()
                 sessions[phone]["estado"] = "inicio"
