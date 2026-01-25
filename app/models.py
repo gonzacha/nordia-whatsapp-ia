@@ -9,10 +9,10 @@ class Comercio(Base):
     __tablename__ = "comercios"
 
     id = Column(Integer, primary_key=True)
+    telefono_dueno = Column(String, unique=True, nullable=False)
     nombre = Column(String, nullable=False)
-    telefono = Column(String, unique=True, nullable=False)
     horarios = Column(Text)
-    precios = Column(Text)
+    servicios = Column(Text)
 
 class Turno(Base):
     __tablename__ = "turnos"
