@@ -1,4 +1,4 @@
-from app.models import SessionLocal, Comercio
+from app.models import SessionLocal, Comercio, Turno
 
 sessions = {}
 
@@ -85,13 +85,53 @@ def process_message(phone: str, text: str) -> str:
         return "¿A qué hora? (ej: 10:00, 14:30)"
 
     elif estado == "esperando_nombre":
-        sessions[phone]["data"]["hora"] = text
+        hora = text
+        dia = sessions[phone]["data"]["dia"]
+
+        # Validar disponibilidad
+        db = SessionLocal()
+        comercio = db.query(Comercio).filter_by(telefono_dueno=phone).first()
+        if comercio:
+            turno_existente = db.query(Turno).filter_by(
+                comercio_id=comercio.id,
+                fecha=dia,
+                hora=hora
+            ).first()
+            db.close()
+
+            if turno_existente:
+                return "Ese horario ya está ocupado 😕\n¿Querés probar con otra hora?"
+        else:
+            db.close()
+
+        sessions[phone]["data"]["hora"] = hora
         sessions[phone]["estado"] = "confirmado"
         return "¿Cuál es tu nombre?"
 
     elif estado == "confirmado":
-        sessions[phone]["data"]["nombre"] = text
+        nombre_cliente = text
+        servicio = sessions[phone]["data"]["servicio"]
+        dia = sessions[phone]["data"]["dia"]
+        hora = sessions[phone]["data"]["hora"]
+
+        # Guardar turno en DB
+        db = SessionLocal()
+        comercio = db.query(Comercio).filter_by(telefono_dueno=phone).first()
+        if comercio:
+            turno = Turno(
+                comercio_id=comercio.id,
+                cliente_nombre=nombre_cliente,
+                cliente_telefono=phone,
+                fecha=dia,
+                hora=hora,
+                servicio=servicio
+            )
+            db.add(turno)
+            db.commit()
+        db.close()
+
         sessions[phone]["estado"] = "inicio"
+        sessions[phone]["data"] = {}
         return "Listo, tu turno quedó agendado 👍"
 
     return "No entendí, escribí HOLA para empezar"
