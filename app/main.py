@@ -1,8 +1,11 @@
 from fastapi import FastAPI, Request, Query
-from app.config import APP_NAME, WHATSAPP_VERIFY_TOKEN
+from fastapi.responses import PlainTextResponse
+from app.config import APP_NAME
 from app import engine, whatsapp
 
 app = FastAPI(title=APP_NAME)
+
+VERIFY_TOKEN = "nordia_verify_token"
 
 @app.get("/")
 def healthcheck():
@@ -14,12 +17,12 @@ def verify_webhook(
     token: str = Query(alias="hub.verify_token"),
     challenge: str = Query(alias="hub.challenge")
 ):
-    if mode == "subscribe" and token == WHATSAPP_VERIFY_TOKEN:
+    if mode == "subscribe" and token == VERIFY_TOKEN:
         print(f"[Webhook] Verified successfully")
-        return int(challenge)
+        return PlainTextResponse(content=challenge, status_code=200)
     else:
         print(f"[Webhook] Verification failed")
-        return {"error": "verification failed"}, 403
+        return PlainTextResponse(content="Invalid token", status_code=403)
 
 @app.post("/webhook")
 async def webhook(request: Request):
