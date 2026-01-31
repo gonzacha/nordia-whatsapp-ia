@@ -10,6 +10,7 @@ States:
 """
 
 from app.state import get_conversation, update_conversation
+from app.validators import validate_nombre, validate_horarios, validate_servicios
 
 
 ESTADOS = {
@@ -47,7 +48,13 @@ def handle_message(sender: str, text: str) -> str:
         return "Hola 👋 Soy Nordia. Escribí 'setup' para comenzar."
 
     elif estado_actual == "esperando_nombre":
-        # Save business name and ask for hours
+        # Validate business name before saving
+        is_valid, error_msg = validate_nombre(text)
+        if not is_valid:
+            # Validation failed - stay in same state and return error
+            return f"❌ {error_msg}\n\n¿Cómo se llama tu negocio?"
+
+        # Valid - save and advance to next state
         update_conversation(sender, {
             "estado": "esperando_horarios",
             "nombre": text
@@ -55,14 +62,26 @@ def handle_message(sender: str, text: str) -> str:
         return f"Perfecto, {text}. ¿Cuáles son tus horarios de atención?"
 
     elif estado_actual == "esperando_horarios":
-        # Save hours and ask for services
+        # Validate business hours before saving
+        is_valid, error_msg = validate_horarios(text)
+        if not is_valid:
+            # Validation failed - stay in same state and return error
+            return f"❌ {error_msg}\n\n¿Cuáles son tus horarios?"
+
+        # Valid - save and advance to next state
         conv["estado"] = "esperando_servicios"
         conv["horarios"] = text
         update_conversation(sender, conv)
         return "Genial. ¿Qué servicios ofreces?"
 
     elif estado_actual == "esperando_servicios":
-        # Save services and complete setup
+        # Validate services before completing setup
+        is_valid, error_msg = validate_servicios(text)
+        if not is_valid:
+            # Validation failed - stay in same state and return error
+            return f"❌ {error_msg}\n\n¿Qué servicios ofreces?"
+
+        # Valid - save and complete setup
         conv["estado"] = "completado"
         conv["servicios"] = text
         update_conversation(sender, conv)

@@ -143,13 +143,13 @@ def test_servicios_completes_flow():
         "horarios": "Lun-Vie 9-18hs"
     })
 
-    # Usuario responde servicios
-    response = handle_message(sender, "Corte, barba, afeitado")
+    # Usuario responde servicios (con precios para pasar validación)
+    response = handle_message(sender, "Corte $8000, barba $5000, afeitado $3000")
 
     # Verifica respuesta confirma datos
     assert "Barbería El Corte" in response
     assert "Lun-Vie 9-18hs" in response
-    assert "Corte, barba, afeitado" in response
+    assert "Corte $8000, barba $5000, afeitado $3000" in response
     assert "✅" in response or "Listo" in response
 
     # Verifica estado completado
@@ -157,7 +157,7 @@ def test_servicios_completes_flow():
     assert conv.get("estado") == "completado"
     assert conv.get("nombre") == "Barbería El Corte"
     assert conv.get("horarios") == "Lun-Vie 9-18hs"
-    assert conv.get("servicios") == "Corte, barba, afeitado"
+    assert conv.get("servicios") == "Corte $8000, barba $5000, afeitado $3000"
 
 
 def test_full_flow_end_to_end():
@@ -182,8 +182,8 @@ def test_full_flow_end_to_end():
     assert "servicios" in response.lower()
     assert get_conversation(sender).get("estado") == "esperando_servicios"
 
-    # Paso 4: Servicios
-    response = handle_message(sender, "Café, medialunas, desayuno")
+    # Paso 4: Servicios (con precios para pasar validación)
+    response = handle_message(sender, "Café $1500, medialunas $800, desayuno $2500")
     assert "Café Molido" in response
     assert "completado" in get_conversation(sender).get("estado")
 
@@ -232,3 +232,191 @@ def test_completado_state_response():
 
     # Debe indicar que ya completó setup
     assert "completaste" in response.lower() or "listo" in response.lower()
+
+
+# ==================== VALIDATION INTEGRATION TESTS ====================
+
+def test_nombre_invalid_too_short_stays_in_state():
+    """
+    Invalid nombre (too short) should NOT advance state, should re-ask.
+    """
+    sender = "777888999"
+
+    # Setup: Start flow
+    handle_message(sender, "setup")
+    assert get_conversation(sender).get("estado") == "esperando_nombre"
+
+    # Send invalid nombre (too short)
+    response = handle_message(sender, "ab")
+
+    # Should NOT advance to esperando_horarios
+    assert get_conversation(sender).get("estado") == "esperando_nombre"
+
+    # Should return error message
+    assert "❌" in response
+    assert "3 caracteres" in response
+    assert "negocio" in response.lower()  # Re-ask question
+
+    # Should NOT have saved invalid nombre
+    assert "nombre" not in get_conversation(sender)
+
+
+def test_nombre_invalid_only_numbers_returns_error():
+    """
+    Invalid nombre (only numbers) should return specific error.
+    """
+    sender = "888999000"
+
+    # Setup: Start flow
+    handle_message(sender, "setup")
+
+    # Send invalid nombre (only numbers)
+    response = handle_message(sender, "12345")
+
+    # Should stay in esperando_nombre
+    assert get_conversation(sender).get("estado") == "esperando_nombre"
+
+    # Should return error about only numbers
+    assert "❌" in response
+    assert "solo números" in response.lower()
+
+
+def test_horarios_invalid_no_numbers_stays_in_state():
+    """
+    Invalid horarios (no numbers) should NOT advance state.
+    """
+    sender = "111000111"
+
+    # Setup: Valid nombre first
+    update_conversation(sender, {
+        "estado": "esperando_horarios",
+        "nombre": "Test Business"
+    })
+
+    # Send invalid horarios (no numbers)
+    response = handle_message(sender, "todo el día")
+
+    # Should NOT advance to esperando_servicios
+    assert get_conversation(sender).get("estado") == "esperando_horarios"
+
+    # Should return error message
+    assert "❌" in response
+    assert "números" in response.lower()
+    assert "horarios" in response.lower()  # Re-ask question
+
+    # Should NOT have saved invalid horarios
+    assert "horarios" not in get_conversation(sender)
+
+
+def test_horarios_invalid_no_letters_stays_in_state():
+    """
+    Invalid horarios (no letters) should NOT advance state.
+    """
+    sender = "222000222"
+
+    # Setup: Valid nombre first
+    update_conversation(sender, {
+        "estado": "esperando_horarios",
+        "nombre": "Test Business"
+    })
+
+    # Send invalid horarios (no letters)
+    response = handle_message(sender, "9-18")
+
+    # Should NOT advance to esperando_servicios
+    assert get_conversation(sender).get("estado") == "esperando_horarios"
+
+    # Should return error message
+    assert "❌" in response
+    assert "letras" in response.lower()
+
+
+def test_servicios_invalid_too_short_returns_error():
+    """
+    Invalid servicios (too short) should NOT complete setup.
+    """
+    sender = "333000333"
+
+    # Setup: Valid nombre and horarios
+    update_conversation(sender, {
+        "estado": "esperando_servicios",
+        "nombre": "Test Business",
+        "horarios": "9-18hs"
+    })
+
+    # Send invalid servicios (too short)
+    response = handle_message(sender, "ab")
+
+    # Should NOT advance to completado
+    assert get_conversation(sender).get("estado") == "esperando_servicios"
+
+    # Should return error message
+    assert "❌" in response
+    assert "3 caracteres" in response
+    assert "servicios" in response.lower()  # Re-ask question
+
+    # Should NOT have saved invalid servicios
+    assert "servicios" not in get_conversation(sender)
+
+
+def test_servicios_invalid_no_prices_stays_in_state():
+    """
+    Invalid servicios (no numbers/prices) should NOT complete setup.
+    """
+    sender = "444000444"
+
+    # Setup: Valid nombre and horarios
+    update_conversation(sender, {
+        "estado": "esperando_servicios",
+        "nombre": "Test Business",
+        "horarios": "9-18hs"
+    })
+
+    # Send invalid servicios (no prices)
+    response = handle_message(sender, "corte y barba")
+
+    # Should NOT advance to completado
+    assert get_conversation(sender).get("estado") == "esperando_servicios"
+
+    # Should return error message
+    assert "❌" in response
+    assert "precios" in response.lower()
+
+
+def test_validation_flow_with_corrections():
+    """
+    User can correct invalid input and continue flow.
+    """
+    sender = "555000555"
+
+    # Step 1: Setup
+    handle_message(sender, "setup")
+
+    # Step 2: Try invalid nombre → rejected
+    response = handle_message(sender, "ab")
+    assert get_conversation(sender).get("estado") == "esperando_nombre"
+    assert "❌" in response
+
+    # Step 3: Send valid nombre → accepted
+    response = handle_message(sender, "Barbería OK")
+    assert get_conversation(sender).get("estado") == "esperando_horarios"
+    assert "horarios" in response.lower()
+
+    # Step 4: Try invalid horarios → rejected
+    response = handle_message(sender, "xx")
+    assert get_conversation(sender).get("estado") == "esperando_horarios"
+    assert "❌" in response
+
+    # Step 5: Send valid horarios → accepted
+    response = handle_message(sender, "9-18hs")
+    assert get_conversation(sender).get("estado") == "esperando_servicios"
+
+    # Step 6: Try invalid servicios → rejected
+    response = handle_message(sender, "x")
+    assert get_conversation(sender).get("estado") == "esperando_servicios"
+    assert "❌" in response
+
+    # Step 7: Send valid servicios → complete
+    response = handle_message(sender, "Corte $5000")
+    assert get_conversation(sender).get("estado") == "completado"
+    assert "✅" in response
