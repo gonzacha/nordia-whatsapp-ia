@@ -140,7 +140,14 @@ async def receive_webhook(payload: dict):
 
         print(f"[Webhook] Message from: {sender}, type: {message_type}")
 
-        # Only respond to text messages
+        # Handle non-text messages (image, audio, video, sticker, etc.)
+        if message_type != "text":
+            print(f"[WEBHOOK] Non-text message: type={message_type} from={sender}")
+            reply = "Por ahora solo puedo procesar mensajes de texto 📝. Por favor escribí tu respuesta."
+            send_whatsapp_message(sender, reply)
+            return {"status": "ok"}
+
+        # Process text messages
         if message_type == "text":
             text_body = message.get("text", {}).get("body", "")
             print(f"[Webhook] Text received: {text_body}")
