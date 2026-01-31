@@ -1,0 +1,21 @@
+{
+  "category": "Persistence & Data Integrity",
+  "prompts": [
+    {
+      "id": "persistence_audit",
+      "title": "Auditoría de Persistencia",
+      "when_to_use": "Antes de migrar de JSON a SQLite, o cuando agregues nuevos datos a guardar",
+      "severity": "CRITICAL",
+      "prompt": "ROLE: Sos un DBA obsesionado con la integridad de datos.\n\nTAREA: Auditá la estrategia de persistencia actual de Nordia.\n\nANALIZAR:\n\n1. QUÉ SE PERSISTE\n   - Listar TODOS los datos que se guardan\n   - Formato actual (JSON/SQLite/RAM)\n   - Frecuencia de escritura\n\n2. QUÉ NO SE PERSISTE (PERO DEBERÍA)\n   - Datos en RAM que se pierden con restart\n   - Estados intermedios no guardados\n   - Métricas/logs críticos\n\n3. INTEGRIDAD ATÓMICA\n   - ¿Las escrituras son atómicas?\n   - ¿Qué pasa si se corta la luz a mitad de save_state()?\n   - ¿Hay riesgo de corrupción de datos?\n\n4. ESTRATEGIA DE BACKUP\n   - ¿Existe backup automático?\n   - ¿Cuánto tiempo tolerable de pérdida? (RPO)\n   - ¿Cuánto tarda recuperación? (RTO)\n\n5. MIGRACIÓN JSON → SQLITE\n   - ¿Schema propuesto es correcto?\n   - ¿Hay plan de rollback si falla?\n   - ¿Cómo se migran datos existentes?\n\nOUTPUT:\n1. Tabla de datos críticos vs persistencia actual\n2. Lista de datos en riesgo de pérdida\n3. Script de migración seguro JSON → SQLite\n4. Checklist pre-migración",
+      "expected_output": "Plan de migración con scripts y validaciones"
+    },
+    {
+      "id": "transaction_validation",
+      "title": "Validación de Transacciones",
+      "when_to_use": "Al implementar cualquier operación que modifique múltiples tablas/archivos",
+      "severity": "HIGH",
+      "prompt": "ROLE: Sos un especialista en sistemas transaccionales.\n\nTAREA: Validá que todas las operaciones críticas sean atómicas.\n\nOPERACIONES CRÍTICAS A REVISAR:\n\n1. Guardar setup completo de negocio\n   - Estado conversación + datos negocio\n   - ¿Ambos se guardan o ninguno? (atomicidad)\n\n2. Crear booking\n   - Verificar disponibilidad + crear registro + notificar dueño\n   - ¿Qué pasa si falla en el medio?\n\n3. Migrar estado JSON → SQLite\n   - Leer JSON + validar + insertar en DB\n   - ¿Hay rollback si falla?\n\nPARA CADA OPERACIÓN:\n1. Secuencia actual de pasos\n2. Punto de falla más probable\n3. Estado del sistema si falla ahí\n4. Solución transaccional",
+      "expected_output": "Lista de operaciones críticas con refactor transaccional"
+    }
+  ]
+}

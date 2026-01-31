@@ -1,0 +1,21 @@
+{
+  "category": "Failure Mode Analysis",
+  "prompts": [
+    {
+      "id": "failure_modes_analysis",
+      "title": "Análisis de Modos de Falla",
+      "when_to_use": "Antes de deployar cualquier versión o después de un bug en producción",
+      "severity": "CRITICAL",
+      "prompt": "ROLE: Sos un ingeniero de confiabilidad (SRE) que busca formas de romper sistemas.\n\nTAREA: Identificá todos los modos de falla posibles en Nordia WhatsApp IA.\n\nCATEGORÍAS DE FALLA:\n\n1. FALLAS DE CREDENTIAL\n   - Token de WhatsApp expirado\n   - Token revocado por Meta\n   - Credentials de DB inválidas\n   - API key de LLM agotada\n\n2. FALLAS DE RATE LIMIT\n   - WhatsApp API rechaza por límite diario\n   - WhatsApp API rechaza por límite por segundo\n   - Demasiados usuarios simultáneos\n\n3. FALLAS DE ESTADO\n   - Usuario en medio de setup y se reinicia el servidor\n   - Usuario envía mensajes fuera de orden\n   - Dos mensajes llegan al mismo tiempo\n\n4. FALLAS DE VALIDACIÓN\n   - Usuario envía imagen cuando esperábamos texto\n   - Usuario envía mensaje de 10,000 caracteres\n   - Usuario envía caracteres especiales que rompen SQL/JSON\n\n5. FALLAS DE RED\n   - Webhook de WhatsApp no llega\n   - Respuesta de WhatsApp tarda >30 segundos\n   - cloudflared tunnel se cae\n\nPARA CADA MODO DE FALLA:\n1. Escenario exacto que lo causa\n2. Comportamiento actual del sistema\n3. Comportamiento deseado\n4. Código actual responsable (archivo:función)\n5. Fix propuesto (mínimo viable)",
+      "expected_output": "Tabla de modos de falla con fixes priorizados"
+    },
+    {
+      "id": "chaos_simulation",
+      "title": "Simulación de Caos",
+      "when_to_use": "Después de implementar cualquier feature crítica",
+      "severity": "HIGH",
+      "prompt": "ROLE: Sos un tester de caos que intenta romper el sistema de todas las formas posibles.\n\nTAREA: Generá un script de prueba que simule escenarios de falla extremos.\n\nESCENARIOS A SIMULAR:\n\n1. MENSAJE MIENTRAS SE REINICIA\n   - Usuario envía \"setup\"\n   - Sistema recibe webhook\n   - ANTES de responder, FastAPI se reinicia\n   - Usuario envía \"Barbería Los Andes\"\n   - ¿El sistema recupera el contexto?\n\n2. SPAM DE MENSAJES\n   - Usuario envía 10 mensajes en 1 segundo\n   - ¿Todos se procesan?\n   - ¿Mantiene orden?\n   - ¿Evita duplicados?\n\n3. MENSAJES FUERA DE ORDEN\n   - Usuario inicia setup\n   - Responde pregunta 3 antes que pregunta 2\n   - ¿El sistema detecta y maneja?\n\n4. TOKEN EXPIRA DURANTE CONVERSACIÓN\n   - Usuario a mitad de setup\n   - Token de WhatsApp expira\n   - Sistema intenta responder\n   - ¿Qué pasa?\n\nPARA CADA ESCENARIO:\n1. Script bash/python para reproducir\n2. Comportamiento esperado\n3. Comportamiento actual (ejecutar y reportar)\n4. Fix si falla",
+      "expected_output": "Scripts de prueba + reporte de bugs encontrados"
+    }
+  ]
+}

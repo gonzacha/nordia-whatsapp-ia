@@ -1,0 +1,21 @@
+{
+  "category": "Defensive Programming",
+  "prompts": [
+    {
+      "id": "defensive_patterns",
+      "title": "Patrones de Programación Defensiva",
+      "when_to_use": "Al revisar cualquier PR o después de encontrar un bug",
+      "severity": "HIGH",
+      "prompt": "ROLE: Sos un ingeniero de software defensivo extremadamente paranoico.\n\nTAREA: Revisá el código actual y aplicá patrones de programación defensiva.\n\nPATRONES A APLICAR:\n\n1. FAIL-FAST\n   - Validar precondiciones al inicio de cada función\n   - Lanzar excepciones claras si input inválido\n   - No asumir nada\n\n2. DEFENSIVE COPIES\n   - No modificar estructuras mutables directamente\n   - Copiar antes de mutar\n\n3. INVARIANTES EXPLÍCITAS\n   - Documentar y validar invariantes de clase/función\n   - Agregar asserts\n\n4. NULL SAFETY\n   - Siempre manejar None/null\n   - Usar Optional[] en type hints\n\n5. IDEMPOTENCIA\n   - Operaciones repetidas = mismo resultado\n   - Crítico para webhooks duplicados\n\nREVISAR CADA FUNCIÓN Y:\n1. Identificar precondiciones faltantes\n2. Agregar validaciones\n3. Documentar invariantes\n4. Hacer operaciones idempotentes",
+      "expected_output": "Código refactorizado con validaciones defensivas"
+    },
+    {
+      "id": "circuit_breaker",
+      "title": "Circuit Breaker para APIs Externas",
+      "when_to_use": "Al integrar con WhatsApp API o cualquier servicio externo",
+      "severity": "MEDIUM",
+      "prompt": "ROLE: Sos un arquitecto de resiliencia.\n\nTAREA: Implementá circuit breakers para todas las llamadas externas.\n\nAPIS EXTERNAS:\n1. WhatsApp Cloud API\n2. (Futuro) OpenAI API\n3. (Futuro) MercadoPago API\n\nIMPLEMENTAR:\nClase CircuitBreaker con estados:\n- CLOSED: Funcionando normal\n- OPEN: Muchos errores, bloquear llamadas\n- HALF_OPEN: Probar si se recuperó\n\nCon parámetros configurables:\n- failure_threshold: Cantidad de errores antes de abrir\n- timeout: Tiempo antes de probar recuperación\n\nIntegrar en send_whatsapp_message()",
+      "expected_output": "Circuit breaker implementado y testeado"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "category": "Post-Bug Autopsy",
+  "prompts": [
+    {
+      "id": "post_mortem",
+      "title": "Autopsia Post-Mortem",
+      "when_to_use": "Después de CUALQUIER bug en producción o demo fallida",
+      "severity": "CRITICAL",
+      "prompt": "ROLE: Sos un investigador forense de bugs.\n\nTAREA: Analizar el bug a fondo y prevenir recurrencia.\n\nBUG:\n[Describir qué salió mal]\n\nAUTOPSIA:\n\n1. TIMELINE\n   - ¿Cuándo se introdujo el bug? (commit, PR, fecha)\n   - ¿Cuándo se detectó?\n   - ¿Cuánto tiempo pasó sin detectarse?\n\n2. ROOT CAUSE\n   - ¿Cuál fue la causa raíz? (no síntoma)\n   - ¿Por qué pasó? (5 Whys)\n   - ¿Qué asumimos incorrectamente?\n\n3. IMPACTO\n   - ¿Cuántos usuarios afectados?\n   - ¿Datos perdidos/corruptos?\n   - ¿Demo/demo fallida?\n\n4. DETECCIÓN\n   - ¿Cómo se descubrió?\n   - ¿Por qué los tests no lo detectaron?\n   - ¿Por qué el smoke test no lo encontró?\n\n5. FIX APLICADO\n   - ¿Qué se cambió?\n   - ¿Es fix definitivo o parche temporal?\n\n6. PREVENCIÓN\n   - ¿Qué test agregar para que no vuelva a pasar?\n   - ¿Qué validación faltaba?\n\n7. LEARNING\n   - ¿Qué aprendimos?\n   - ¿Hay otros lugares con el mismo patrón?\n   - ¿Necesitamos cambiar proceso de desarrollo?",
+      "expected_output": "Post-mortem completo con action items"
+    },
+    {
+      "id": "proactive_prevention",
+      "title": "Prevención Proactiva",
+      "when_to_use": "Después de fix, para encontrar bugs similares",
+      "severity": "HIGH",
+      "prompt": "ROLE: Sos un detective de patrones de bugs.\n\nTAREA: Encontrar otros lugares con el mismo patrón de bug.\n\nBUG RESUELTO:\n[Describir bug y fix]\n\nBUSCAR PATRÓN:\n\n1. GREP POR CÓDIGO SIMILAR\n   - Si el bug fue \"no validar None\"\n   - Buscar código similar sin validación\n\n2. ANALIZAR FUNCIONES SIMILARES\n   - Si el bug estaba en handle_nombre()\n   - Revisar handle_horarios(), handle_servicios()\n\n3. BUSCAR MISMO ANTI-PATRÓN\n   - Si el bug fue \"asumir que campo existe\"\n   - Buscar todos los .get() sin default\n   - Buscar todos los [] sin try/except\n\nGENERAR:\n1. Lista de archivos/funciones sospechosas\n2. Diff propuesto para cada una\n3. Tests de regresión",
+      "expected_output": "Lista de código similar vulnerable con fixes"
+    }
+  ]
+}

@@ -1,0 +1,101 @@
+{
+  "category": "Meta-Prompt: QA Lead Mode",
+  "description": "Activar ANTES de escribir código para CUALQUIER feature nueva",
+  "priority": "HIGHEST",
+  "prompt": {
+    "id": "qa_lead_mode",
+    "title": "Activar Modo QA Lead",
+    "when_to_use": "ANTES de escribir código para CUALQUIER feature nueva",
+    "severity": "CRITICAL",
+    "role": "QA Lead de Nordia. Tu trabajo es PREVENIR bugs, NO arreglarlos después.",
+    "mandatory_checklist": {
+      "paso_1": {
+        "title": "ENTENDER EL PROBLEMA",
+        "questions": [
+          "¿Qué problema resuelve esta feature?",
+          "¿Quién lo pidió y por qué?",
+          "¿Es realmente necesario o es nice-to-have?"
+        ]
+      },
+      "paso_2": {
+        "title": "DEFINIR SOLUCIÓN MÍNIMA",
+        "questions": [
+          "¿Cuál es la versión más simple que funciona?",
+          "¿Podemos hacerlo sin código?",
+          "¿Podemos hacerlo con <50 líneas de código?"
+        ]
+      },
+      "paso_3": {
+        "title": "ANALIZAR IMPACTO",
+        "questions": [
+          "¿Qué archivos se van a modificar?",
+          "¿Afecta features existentes?",
+          "¿Requiere cambios en DB/estado?",
+          "¿Aumenta complejidad significativamente?"
+        ]
+      },
+      "paso_4": {
+        "title": "IDENTIFICAR RIESGOS",
+        "questions": [
+          "¿Qué puede salir mal?",
+          "¿Cómo detectamos si falla?",
+          "¿Cómo rollback si rompe algo?"
+        ]
+      },
+      "paso_5": {
+        "title": "DEFINIR TESTS",
+        "questions": [
+          "¿Qué casos de prueba necesitamos?",
+          "¿Cómo testear sin WhatsApp real?",
+          "¿Cuáles son los edge cases?"
+        ]
+      },
+      "paso_6": {
+        "title": "VALIDAR ARQUITECTURA DEFENSIVA",
+        "questions": [
+          "¿Valida inputs?",
+          "¿Maneja errores externos?",
+          "¿Es idempotente?",
+          "¿Persiste estado correctamente?",
+          "¿Tiene circuit breaker si llama APIs?"
+        ]
+      }
+    },
+    "output_required": [
+      "Especificación de la feature (1 párrafo)",
+      "Lista de archivos a modificar",
+      "Casos de prueba (mínimo 5)",
+      "Pseudo-código de la solución",
+      "Plan de rollback"
+    ],
+    "blocking_rule": "SI NO PODES COMPLETAR EL CHECKLIST → La feature NO está bien definida. NO escribas código. Pedí clarificación al usuario.",
+    "expected_output": "Checklist completo + Especificación clara + Tests definidos + Código SOLO si checklist está completo"
+  },
+  "workflow_diagram": {
+    "before_feature": [
+      "1. Activar QA Lead Mode",
+      "2. Completar checklist obligatorio",
+      "3. Si pasa → Continuar",
+      "4. Si no pasa → Redefinir feature"
+    ],
+    "during_implementation": [
+      "5. Hardening de Validación de Input",
+      "6. Patrones de Programación Defensiva",
+      "7. Validación de Máquina de Estados (si aplica)"
+    ],
+    "before_merge": [
+      "8. Análisis de Modos de Falla",
+      "9. Auditoría de Persistencia (si tocó datos)",
+      "10. Checklist Pre-Refactor (si refactor grande)"
+    ],
+    "before_demo_deploy": [
+      "11. Checklist Pre-Demo",
+      "12. Smoke Test Manual",
+      "13. Simulación de Caos (para features críticas)"
+    ],
+    "after_bug": [
+      "14. Autopsia Post-Mortem",
+      "15. Prevención Proactiva"
+    ]
+  }
+}

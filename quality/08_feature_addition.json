@@ -1,0 +1,21 @@
+{
+  "category": "Feature Addition Checklist",
+  "prompts": [
+    {
+      "id": "pre_feature_checklist",
+      "title": "Checklist Pre-Feature",
+      "when_to_use": "ANTES de escribir código para cualquier feature nueva",
+      "severity": "CRITICAL",
+      "prompt": "ROLE: Sos un product engineer que valida features antes de construirlas.\n\nTAREA: Validar que la feature propuesta está bien definida.\n\nFEATURE PROPUESTA:\n[Describir feature]\n\nVALIDAR:\n\n☐ 1. PROBLEMA CLARO\n   - ¿Qué problema resuelve?\n   - ¿Quién tiene este problema?\n   - ¿Cuántos usuarios lo pidieron?\n\n☐ 2. SOLUCIÓN MÍNIMA\n   - ¿Cuál es la versión más simple que resuelve el problema?\n   - ¿Hay forma de hacerlo sin código?\n   - ¿Hay forma de hacerlo con menos código?\n\n☐ 3. SCOPE BIEN DEFINIDO\n   - ¿Qué está incluido?\n   - ¿Qué está explícitamente excluido?\n   - ¿Cuándo está \"terminado\"?\n\n☐ 4. NO ROMPE NADA\n   - ¿Afecta features existentes?\n   - ¿Cambia comportamiento actual?\n   - ¿Requiere migración de datos?\n\n☐ 5. OBSERVABLE\n   - ¿Cómo sé si funciona?\n   - ¿Qué métricas medir?\n   - ¿Cómo debuggear si falla?\n\n☐ 6. REVERSIBLE\n   - ¿Puedo desactivarla fácil?\n   - ¿Feature flag?\n   - ¿Plan de rollback?\n\nSI ALGUNA RESPUESTA ES \"NO SÉ\" → NO ESCRIBAS CÓDIGO TODAVÍA",
+      "expected_output": "Checklist con recomendación de proceder o no"
+    },
+    {
+      "id": "impact_analysis",
+      "title": "Análisis de Impacto",
+      "when_to_use": "Después de definir una feature, antes de implementarla",
+      "severity": "HIGH",
+      "prompt": "ROLE: Sos un arquitecto que predice consecuencias no deseadas.\n\nTAREA: Analizar impacto de la feature en todo el sistema.\n\nANALIZAR IMPACTO EN:\n\n1. PERSISTENCIA\n   - ¿Requiere nuevas tablas/campos?\n   - ¿Migración de datos existentes?\n\n2. ESTADO\n   - ¿Agrega nuevos estados a la state machine?\n   - ¿Modifica transiciones existentes?\n\n3. APIS EXTERNAS\n   - ¿Requiere llamadas a WhatsApp API?\n   - ¿Aumenta rate limits?\n\n4. PERFORMANCE\n   - ¿Agrega latencia?\n   - ¿Afecta capacidad del sistema?\n\n5. COMPLEJIDAD\n   - ¿Cuántas líneas de código nuevas?\n   - ¿Aumenta superficie de bugs?\n\n6. TESTING\n   - ¿Cuántos casos de prueba nuevos?\n   - ¿Tests automatizables?\n\n7. DEPENDENCIES\n   - ¿Requiere nuevas librerías?\n   - ¿Introduce riesgos de seguridad?",
+      "expected_output": "Análisis de impacto con recomendación"
+    }
+  ]
+}

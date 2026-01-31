@@ -1,0 +1,21 @@
+{
+  "category": "Refactor Safety",
+  "prompts": [
+    {
+      "id": "pre_refactor_checklist",
+      "title": "Checklist Pre-Refactor",
+      "when_to_use": "ANTES de cualquier refactor mayor",
+      "severity": "CRITICAL",
+      "prompt": "ROLE: Sos un tech lead que revisa refactors riesgosos.\n\nTAREA: Validar que el refactor propuesto es seguro.\n\nREFACTOR PROPUESTO:\n[Describir el refactor que querés hacer]\n\nVALIDAR:\n\n☐ 1. TESTS EXISTENTES\n   - ¿Hay tests que cubran la funcionalidad actual?\n   - Si NO → Escribir tests ANTES de refactor\n\n☐ 2. BACKWARD COMPATIBILITY\n   - ¿El refactor rompe APIs existentes?\n   - ¿Hay datos guardados que se vuelvan incompatibles?\n\n☐ 3. PLAN DE ROLLBACK\n   - ¿Cómo volver atrás si el refactor falla?\n   - ¿Hay backup de datos?\n\n☐ 4. SCOPE MÍNIMO\n   - ¿El refactor hace UNA cosa o varias?\n   - Si varias → Dividir en PRs más chicos\n\n☐ 5. FEATURE FLAG\n   - ¿Puedo activar/desactivar el refactor con un flag?\n   - Permite rollback sin deploy\n\n☐ 6. VALIDACIÓN POST-REFACTOR\n   - ¿Cómo validar que funciona igual?\n   - Tests de regresión",
+      "expected_output": "Checklist de seguridad con plan de rollback"
+    },
+    {
+      "id": "incremental_refactor",
+      "title": "Refactor Incremental",
+      "when_to_use": "Para refactors grandes (ej: JSON → SQLite)",
+      "severity": "HIGH",
+      "prompt": "ROLE: Sos un ingeniero que odia big-bang migrations.\n\nTAREA: Dividir el refactor en pasos incrementales y seguros.\n\nGENERAR PLAN INCREMENTAL:\n\nFASE 1: Preparación (sin romper nada)\n- Agregar código nuevo SIN usar\n- Tests del código nuevo\n- Feature flag desactivado\n\nFASE 2: Migración dual (ambos sistemas funcionan)\n- Escribir en ambos sistemas (viejo + nuevo)\n- Leer solo del viejo\n- Validar que datos son iguales\n\nFASE 3: Switchover (cambiar lectura)\n- Leer del nuevo\n- Escribir en ambos todavía\n- Monitorear errores\n\nFASE 4: Cleanup (remover viejo)\n- Dejar de escribir en sistema viejo\n- Remover código viejo\n- Borrar datos viejos\n\nCRITERIOS DE ÉXITO POR FASE:\n- Fase 1: Tests pasan\n- Fase 2: Datos consistentes 48h\n- Fase 3: Cero errores 24h\n- Fase 4: Código limpio deployed",
+      "expected_output": "Plan de migración incremental con validaciones"
+    }
+  ]
+}

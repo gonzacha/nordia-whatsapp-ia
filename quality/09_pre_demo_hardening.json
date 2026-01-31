@@ -1,0 +1,21 @@
+{
+  "category": "Pre-Demo Hardening",
+  "prompts": [
+    {
+      "id": "pre_demo_checklist",
+      "title": "Checklist Pre-Demo",
+      "when_to_use": "24 horas ANTES de grabar cualquier demo o lanzar feature",
+      "severity": "CRITICAL",
+      "prompt": "ROLE: Sos un QA lead que valida sistemas antes de demos públicas.\n\nTAREA: Validar que Nordia está listo para demo/producción.\n\nCHECKLIST OBLIGATORIO:\n\n☐ 1. PERSISTENCIA\n   - [ ] Estado se guarda en disco (no solo RAM)\n   - [ ] Restart no pierde conversaciones\n   - [ ] Probado: reiniciar servidor en medio de conversación\n\n☐ 2. VALIDACIÓN\n   - [ ] Inputs extremos manejados (vacío, muy largo, caracteres especiales)\n   - [ ] Mensajes no-texto respondidos apropiadamente\n   - [ ] Precios sin números rechazados con mensaje claro\n\n☐ 3. ERRORES EXTERNOS\n   - [ ] Token expirado detectado y logueado\n   - [ ] WhatsApp API caído no crashea el sistema\n   - [ ] Respuestas con timeout manejadas\n\n☐ 4. ESTADOS\n   - [ ] Transiciones inválidas bloqueadas\n   - [ ] Conversaciones zombies limpiadas\n   - [ ] Estados inconsistentes detectados\n\n☐ 5. OBSERVABILIDAD\n   - [ ] Logs claros con niveles apropiados\n   - [ ] Errores tienen contexto suficiente\n   - [ ] Health endpoint funciona\n\n☐ 6. TESTING\n   - [ ] Flujo completo testeado end-to-end\n   - [ ] Casos edge probados manualmente\n   - [ ] Rollback plan documentado\n\n☐ 7. PERFORMANCE\n   - [ ] Respuestas en <5 segundos\n   - [ ] Sin memory leaks en pruebas de 1 hora\n   - [ ] Rate limits configurados\n\n☐ 8. SEGURIDAD\n   - [ ] Credentials en .env, no hardcodeadas\n   - [ ] Inputs sanitizados antes de guardar\n   - [ ] No hay SQL injection posible",
+      "expected_output": "Reporte de preparación con decisión GO/NO-GO"
+    },
+    {
+      "id": "manual_smoke_test",
+      "title": "Smoke Test Manual",
+      "when_to_use": "Después de deployar o antes de demo importante",
+      "severity": "HIGH",
+      "prompt": "ROLE: Sos un tester manual meticuloso.\n\nTAREA: Ejecutar smoke test completo de Nordia.\n\nPROCEDIMIENTO:\n\n1. SETUP LIMPIO\n   - Limpiar estado\n   - Reiniciar servidor\n\n2. FLUJO FELIZ (SETUP)\n   - WhatsApp: Enviar \"Hola\"\n   - Enviar: \"setup\"\n   - Enviar: \"Barbería Test\"\n   - Enviar: \"Lun-Vie 9-19\"\n   - Enviar: \"Corte 8000, Barba 5000\"\n   - Validar: Todas las respuestas llegaron, orden correcto, latencia <5s\n\n3. RESTART RESILIENCE\n   - En medio del flujo, reiniciar uvicorn\n   - Continuar flujo\n   - DEBE recuperar contexto\n\n4. EDGE CASES\n   - Mensaje vacío\n   - Imagen\n   - Mensaje 1000 chars\n   - Input inválido en servicios\n\n5. ERROR STATES\n   - Token inválido\n   - Health endpoint debe reportar degraded\n\nPARA CADA PASO:\n- ✅ PASS / ❌ FAIL\n- Screenshot si falla\n- Logs relevantes",
+      "expected_output": "Reporte de smoke test con screenshots de fallos"
+    }
+  ]
+}

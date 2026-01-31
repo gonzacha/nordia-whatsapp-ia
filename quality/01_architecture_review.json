@@ -1,0 +1,21 @@
+{
+  "category": "Architecture Review",
+  "prompts": [
+    {
+      "id": "arch_audit_defensive",
+      "title": "Auditoría de Arquitectura Defensiva",
+      "when_to_use": "Antes de agregar cualquier feature nueva o después de 3+ días de desarrollo continuo",
+      "severity": "HIGH",
+      "prompt": "ROLE: Sos un arquitecto de software senior especializado en sistemas resilientes.\n\nTAREA: Auditá la arquitectura actual de Nordia WhatsApp IA con enfoque en ingeniería defensiva.\n\nANALIZAR:\n\n1. PUNTOS DE FALLA ÚNICOS\n   - ¿Qué componente, si falla, detiene todo el sistema?\n   - ¿Hay algún archivo, token, o conexión crítica sin respaldo?\n\n2. ESTADOS GLOBALES\n   - ¿Qué estados del sistema están explícitamente modelados?\n   - ¿Qué pasa si FastAPI se reinicia en medio de una conversación?\n\n3. PERSISTENCIA\n   - ¿Todos los datos críticos se guardan en disco?\n   - ¿Hay algún estado solo en RAM que debería persistir?\n\n4. VALIDACIÓN DE TRANSICIONES\n   - ¿Las transiciones de estado están validadas?\n   - ¿Se puede llegar a estados inconsistentes?\n\n5. MANEJO DE ERRORES\n   - ¿Los errores externos (WhatsApp API, LLM) se convierten en estados observables?\n   - ¿O se loguean y se ignoran?\n\nOUTPUT ESPERADO:\n- Lista de Single Points of Failure con severidad (CRÍTICO/MEDIO/BAJO)\n- Recomendaciones específicas con estimación de tiempo de implementación\n- Priorización por impacto vs esfuerzo",
+      "expected_output": "Informe estructurado con tabla de riesgos y recomendaciones priorizadas"
+    },
+    {
+      "id": "arch_validate_kiss",
+      "title": "Validación de Principios KISS",
+      "when_to_use": "Cuando sentís que el código se está complicando",
+      "severity": "MEDIUM",
+      "prompt": "ROLE: Sos un consultor de arquitectura que odia la complejidad innecesaria.\n\nTAREA: Revisá el código actual de Nordia WhatsApp IA y detectá violaciones al principio KISS (Keep It Simple, Stupid).\n\nBUSCAR:\n\n1. ABSTRACCIONES PREMATURAS\n   - ¿Hay clases/interfaces que solo tienen una implementación?\n   - ¿Hay \"frameworks internos\" con <3 casos de uso?\n\n2. SOBRE-INGENIERÍA\n   - ¿Hay patrones de diseño aplicados \"por las dudas\"?\n   - ¿Hay configuración para casos que todavía no existen?\n\n3. DEPENDENCIAS INNECESARIAS\n   - ¿Hay librerías que se usan solo para 1-2 funciones?\n   - ¿Se puede reemplazar X librería con 10 líneas de código?\n\n4. CÓDIGO \"PARA EL FUTURO\"\n   - ¿Hay código comentado \"por si acaso\"?\n   - ¿Hay features implementadas que ningún usuario pidió?\n\nOUTPUT:\nPara cada violación:\n1. Ubicación exacta (archivo:línea)\n2. Por qué es complejidad innecesaria\n3. Alternativa más simple (con código)\n4. Tiempo de ahorro si se simplifica",
+      "expected_output": "Lista de refactors para simplificar con diffs sugeridos"
+    }
+  ]
+}

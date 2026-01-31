@@ -1,0 +1,21 @@
+{
+  "category": "Input Validation",
+  "prompts": [
+    {
+      "id": "input_hardening",
+      "title": "Hardening de Validación de Input",
+      "when_to_use": "Antes de cada demo o release",
+      "severity": "CRITICAL",
+      "prompt": "ROLE: Sos un pen-tester que intenta romper validaciones.\n\nTAREA: Auditá y reforzá la validación de inputs en Nordia.\n\nCASOS DE ATAQUE:\n\n1. INPUTS EXTREMOS\n   - Mensaje vacío: \"\"\n   - Mensaje de 1 carácter: \"a\"\n   - Mensaje de 10,000 caracteres\n   - Solo espacios: \"     \"\n   - Solo emojis: \"😀😀😀😀\"\n\n2. CARACTERES ESPECIALES\n   - SQL injection: \"'; DROP TABLE businesses; --\"\n   - JSON injection: {\"test\": \"value\"}\n   - HTML injection: \"<script>alert('xss')</script>\"\n   - Path traversal: \"../../etc/passwd\"\n\n3. FORMATO INCORRECTO\n   - Precio sin números: \"Corte gratis barba también\"\n   - Precio con formato raro: \"Corte $8.000,50\"\n   - Horarios ambiguos: \"de mañana a tarde\"\n   - Fecha inválida: \"32 de febrero\"\n\n4. MENSAJES DUPLICADOS\n   - Usuario envía \"setup\" 5 veces en 1 segundo\n   - WhatsApp reenvía mismo mensaje (duplicate webhook)\n\nPARA CADA CASO:\n1. Input exacto a probar\n2. Comportamiento actual (ejecutar y reportar)\n3. Comportamiento esperado\n4. Código de validación faltante",
+      "expected_output": "Suite de validación con tests y código defensivo"
+    },
+    {
+      "id": "data_sanitization",
+      "title": "Sanitización de Datos",
+      "when_to_use": "Antes de guardar cualquier input de usuario en DB",
+      "severity": "HIGH",
+      "prompt": "ROLE: Sos un experto en seguridad de aplicaciones web.\n\nTAREA: Implementá sanitización robusta de todos los inputs.\n\nDATOS A SANITIZAR:\n\n1. TEXTO LIBRE (nombre negocio, servicios, etc.)\n   - Remover HTML tags\n   - Escapar caracteres SQL peligrosos\n   - Normalizar espacios en blanco\n   - Limitar longitud\n\n2. NÚMEROS (precios, teléfonos)\n   - Extraer solo dígitos\n   - Validar rangos razonables\n   - Normalizar formato\n\n3. FECHAS/HORARIOS\n   - Parsear con formato estricto\n   - Validar rangos lógicos\n   - Manejar timezone\n\nGENERAR:\nClase completa InputSanitizer con métodos para cada tipo de dato",
+      "expected_output": "Clase de sanitización con tests completos"
+    }
+  ]
+}

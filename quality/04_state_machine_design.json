@@ -1,0 +1,21 @@
+{
+  "category": "State Machine Design",
+  "prompts": [
+    {
+      "id": "state_machine_validation",
+      "title": "Validación de Máquina de Estados",
+      "when_to_use": "Al agregar nuevos estados o modificar transiciones existentes",
+      "severity": "HIGH",
+      "prompt": "ROLE: Sos un especialista en autómatas finitos.\n\nTAREA: Validá el diseño de la state machine de Nordia.\n\nREQUISITOS:\n\n1. COMPLETITUD\n   - ¿Todos los estados tienen transiciones definidas?\n   - ¿Hay estados \"muertos\" sin salida?\n   - ¿Qué pasa si llega mensaje inesperado en cada estado?\n\n2. DETERMINISMO\n   - ¿Hay ambigüedad en las transiciones?\n   - Dado estado X + mensaje Y, ¿solo hay 1 próximo estado?\n\n3. TRANSICIONES VÁLIDAS\n   - Crear matriz de transiciones válidas\n   - Detectar transiciones ilegales\n   - Agregar validación en set_state()\n\n4. ESTADOS TERMINALES\n   - ¿Cuáles son estados finales?\n   - ¿Cómo se resetea la conversación?\n   - ¿Hay timeout para estados incompletos?\n\nGENERAR:\n1. Diagrama ASCII de la state machine actual\n2. Tabla de transiciones válidas\n3. Código de validación de transiciones\n4. Tests para cada transición",
+      "expected_output": "Diagrama + tabla de transiciones + código de validación"
+    },
+    {
+      "id": "inconsistent_states_detection",
+      "title": "Detección de Estados Inconsistentes",
+      "when_to_use": "Después de bugs relacionados con estado corrupto",
+      "severity": "MEDIUM",
+      "prompt": "ROLE: Sos un debugger de estado distribuido.\n\nTAREA: Detectá posibles inconsistencias de estado en Nordia.\n\nBUSCAR:\n\n1. ESTADO SPLIT-BRAIN\n   - ¿Puede haber discrepancia entre RAM y disco?\n   - ¿Entre conversaciones{} y SQLite?\n\n2. ESTADO ZOMBIE\n   - Conversaciones que nunca terminan\n   - Estados intermedios atascados\n   - Recursos no liberados\n\n3. CONDICIONES DE CARRERA\n   - Dos mensajes modifican mismo estado simultáneamente\n   - Webhook duplicado procesado 2 veces\n\nGENERAR:\n1. Función de validación de consistencia\n2. Script de limpieza de estados zombies\n3. Endpoint /admin/cleanup_stale",
+      "expected_output": "Herramientas de validación y limpieza de estado"
+    }
+  ]
+}
