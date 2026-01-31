@@ -2,3 +2,10 @@ venv
 __pycache__
 *.db
 .env
+
+# Conversation state persistence (may contain sensitive user data)
+data/conversations_state.json
+
+# Test artifacts
+.pytest_cache/
+*.pyc

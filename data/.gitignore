@@ -1,0 +1,3 @@
+# Data directory for conversation persistence
+*.json
+!.gitignore
