@@ -9,6 +9,7 @@ States:
 - completado: Setup completed
 """
 
+import unicodedata
 from app.state import get_conversation, update_conversation
 from app.validators import validate_nombre, validate_horarios, validate_servicios
 
@@ -20,6 +21,59 @@ ESTADOS = {
     "esperando_servicios": "Esperando lista de servicios",
     "completado": "Setup finalizado"
 }
+
+
+def normalize_text(text: str) -> str:
+    """
+    Normalize text for keyword matching: lowercase + remove accents.
+
+    Args:
+        text: Input text to normalize
+
+    Returns:
+        Normalized text (lowercase, no accents)
+
+    Examples:
+        >>> normalize_text("CUÁNTO")
+        'cuanto'
+        >>> normalize_text("Precio")
+        'precio'
+    """
+    # Remove accents using Unicode normalization
+    nfkd = unicodedata.normalize('NFKD', text)
+    without_accents = ''.join([c for c in nfkd if not unicodedata.combining(c)])
+    return without_accents.lower()
+
+
+def contains_service_query_keyword(text: str) -> bool:
+    """
+    Check if text contains keywords for service/price query.
+
+    Keywords: precio, servicios, cuanto, cuesta, sale
+    Case-insensitive and accent-insensitive.
+
+    Args:
+        text: User message to check
+
+    Returns:
+        True if contains any service query keyword
+
+    Examples:
+        >>> contains_service_query_keyword("cuanto cuesta?")
+        True
+        >>> contains_service_query_keyword("hola")
+        False
+    """
+    normalized = normalize_text(text)
+    keywords = [
+        'precio', 'precios',
+        'servicio', 'servicios',
+        'cuanto',
+        'cuesta', 'cuestan',
+        'sale', 'salen'
+    ]
+
+    return any(keyword in normalized for keyword in keywords)
 
 
 def handle_message(sender: str, text: str) -> str:
@@ -93,8 +147,18 @@ def handle_message(sender: str, text: str) -> str:
         )
 
     elif estado_actual == "completado":
-        # User already completed setup
-        return "Ya completaste el setup. Próximamente más funciones!"
+        # Check if user is querying for services/prices
+        if contains_service_query_keyword(text):
+            servicios = conv.get("servicios", "")
+
+            if servicios:
+                return f"Estos son nuestros servicios:\n{servicios}"
+            else:
+                # Edge case: completed setup but no services saved
+                return "Todavía no tenemos servicios configurados."
+
+        # Fallback: guide user on what they can do
+        return "¡Hola! Escribí SERVICIOS para ver nuestros precios."
 
     # Fallback (should never reach here)
     return "Hola 👋 Soy Nordia. Escribí 'setup' para comenzar."

@@ -227,11 +227,12 @@ def test_completado_state_response():
         "servicios": "Musculación, cardio"
     })
 
-    # Usuario envía mensaje después de completar
+    # Usuario envía mensaje después de completar (sin keywords)
     response = handle_message(sender, "hola")
 
-    # Debe indicar que ya completó setup
-    assert "completaste" in response.lower() or "listo" in response.lower()
+    # Debe recibir fallback message guiando a consultar servicios
+    assert "servicios" in response.lower()
+    assert "precios" in response.lower()
 
 
 # ==================== VALIDATION INTEGRATION TESTS ====================
@@ -420,3 +421,194 @@ def test_validation_flow_with_corrections():
     response = handle_message(sender, "Corte $5000")
     assert get_conversation(sender).get("estado") == "completado"
     assert "✅" in response
+
+
+# ==================== SERVICE QUERY TESTS ====================
+
+def test_normalize_text_removes_accents():
+    """normalize_text should remove accents and convert to lowercase."""
+    from app.engine import normalize_text
+
+    assert normalize_text("CUÁNTO") == "cuanto"
+    assert normalize_text("Precio") == "precio"
+    assert normalize_text("Servicios") == "servicios"
+    assert normalize_text("¿Cuánto cuesta?") == "¿cuanto cuesta?"
+
+
+def test_normalize_text_handles_special_chars():
+    """normalize_text should preserve special characters except accents."""
+    from app.engine import normalize_text
+
+    assert normalize_text("Café $500") == "cafe $500"
+    assert normalize_text("¿PRECIOS?") == "¿precios?"
+
+
+def test_contains_service_query_keyword_detects_keywords():
+    """Should detect service query keywords case-insensitively."""
+    from app.engine import contains_service_query_keyword
+
+    assert contains_service_query_keyword("cuanto cuesta?")
+    assert contains_service_query_keyword("PRECIO")
+    assert contains_service_query_keyword("servicios")
+    assert contains_service_query_keyword("Cuánto sale?")
+    assert contains_service_query_keyword("lista de precios por favor")
+    assert contains_service_query_keyword("cuestan mucho?")
+
+
+def test_contains_service_query_keyword_returns_false():
+    """Should return False when no keywords present."""
+    from app.engine import contains_service_query_keyword
+
+    assert not contains_service_query_keyword("hola")
+    assert not contains_service_query_keyword("buenos dias")
+    assert not contains_service_query_keyword("gracias")
+    assert not contains_service_query_keyword("chau")
+
+
+def test_completado_returns_services_on_keyword():
+    """
+    Estado completado + keyword → muestra servicios.
+    """
+    sender = "777111222"
+
+    update_conversation(sender, {
+        "estado": "completado",
+        "nombre": "Barbería Test",
+        "horarios": "Lun-Vie 9-18hs",
+        "servicios": "Corte $5000, barba $3000"
+    })
+
+    response = handle_message(sender, "cuanto cuesta?")
+
+    assert "servicios" in response.lower()
+    assert "Corte $5000, barba $3000" in response
+
+
+def test_completado_case_insensitive_keywords():
+    """
+    Keywords funcionan con mayúsculas/minúsculas y tildes.
+    """
+    sender = "777111223"
+
+    update_conversation(sender, {
+        "estado": "completado",
+        "nombre": "Test",
+        "horarios": "9-18hs",
+        "servicios": "Test $100"
+    })
+
+    # Mayúsculas
+    response = handle_message(sender, "PRECIO")
+    assert "Test $100" in response
+
+    # Con tildes
+    response = handle_message(sender, "¿Cuánto cuesta?")
+    assert "Test $100" in response
+
+    # Lowercase
+    response = handle_message(sender, "servicios")
+    assert "Test $100" in response
+
+
+def test_completado_fallback_without_keywords():
+    """
+    Estado completado sin keywords → mensaje de ayuda.
+    """
+    sender = "777111224"
+
+    update_conversation(sender, {
+        "estado": "completado",
+        "nombre": "Test",
+        "horarios": "9-18hs",
+        "servicios": "Test $100"
+    })
+
+    response = handle_message(sender, "hola")
+
+    assert "SERVICIOS" in response
+    assert "precios" in response.lower()
+    # NO debe mostrar los servicios todavía
+    assert "Test $100" not in response
+
+
+def test_completado_handles_empty_services():
+    """
+    Edge case: completado pero sin servicios guardados.
+    """
+    sender = "777111225"
+
+    update_conversation(sender, {
+        "estado": "completado",
+        "nombre": "Test",
+        "horarios": "9-18hs",
+        "servicios": ""  # Vacío
+    })
+
+    response = handle_message(sender, "precio")
+
+    assert "no tenemos servicios" in response.lower() or "configurados" in response.lower()
+
+
+def test_setup_not_affected_by_service_keywords():
+    """
+    CRÍTICO: Keywords NO deben afectar flujo de setup.
+    Usuario en esperando_nombre escribe "cuanto" → debe seguir en setup.
+    """
+    sender = "777111226"
+
+    # Setup inicial
+    handle_message(sender, "setup")
+    assert get_conversation(sender).get("estado") == "esperando_nombre"
+
+    # Usuario escribe texto con keyword
+    response = handle_message(sender, "Cuanto Cuesta Barbería")
+
+    # Debe procesar como nombre (aunque tenga keyword)
+    assert "horarios" in response.lower()  # Avanzó a esperando_horarios
+
+    conv = get_conversation(sender)
+    assert conv.get("estado") == "esperando_horarios"
+    assert conv.get("nombre") == "Cuanto Cuesta Barbería"  # Guardó el texto con keyword
+
+
+def test_multiple_service_query_keywords():
+    """
+    Múltiples keywords en mismo mensaje.
+    """
+    sender = "777111227"
+
+    update_conversation(sender, {
+        "estado": "completado",
+        "nombre": "Café Test",
+        "horarios": "24hs",
+        "servicios": "Café $1500, medialunas $800"
+    })
+
+    response = handle_message(sender, "cuanto cuestan los servicios?")
+
+    assert "servicios" in response.lower()
+    assert "Café $1500, medialunas $800" in response
+
+
+def test_completado_preserves_state_on_query():
+    """
+    Consultar servicios NO debe modificar estado ni datos.
+    """
+    sender = "777111228"
+
+    update_conversation(sender, {
+        "estado": "completado",
+        "nombre": "Test Business",
+        "horarios": "Lun-Vie 9-18hs",
+        "servicios": "Corte $5000"
+    })
+
+    # Query servicios
+    response = handle_message(sender, "precio")
+
+    # Verify state unchanged
+    conv = get_conversation(sender)
+    assert conv.get("estado") == "completado"
+    assert conv.get("nombre") == "Test Business"
+    assert conv.get("horarios") == "Lun-Vie 9-18hs"
+    assert conv.get("servicios") == "Corte $5000"
