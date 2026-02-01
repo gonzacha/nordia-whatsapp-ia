@@ -9,3 +9,10 @@ data/conversations_state.json
 # Test artifacts
 .pytest_cache/
 *.pyc
+
+# Cloudflare binaries
+*.deb
+cloudflared-linux-amd64.deb
+
+# Feature reports
+.nordia/reports/
