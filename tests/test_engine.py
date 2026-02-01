@@ -612,3 +612,221 @@ def test_completado_preserves_state_on_query():
     assert conv.get("nombre") == "Test Business"
     assert conv.get("horarios") == "Lun-Vie 9-18hs"
     assert conv.get("servicios") == "Corte $5000"
+
+
+# ==================== APPOINTMENT TESTS ====================
+
+def test_contains_appointment_keyword_detects_keywords():
+    """Should detect appointment keywords case-insensitively."""
+    from app.engine import contains_appointment_keyword
+
+    assert contains_appointment_keyword("quiero un turno")
+    assert contains_appointment_keyword("RESERVA")
+    assert contains_appointment_keyword("cita médica")
+    assert contains_appointment_keyword("turnos disponibles?")
+    assert contains_appointment_keyword("quiero reservar")
+
+
+def test_contains_appointment_keyword_returns_false():
+    """Should return False when no appointment keywords present."""
+    from app.engine import contains_appointment_keyword
+
+    assert not contains_appointment_keyword("hola")
+    assert not contains_appointment_keyword("cuanto cuesta?")
+    assert not contains_appointment_keyword("precio")
+
+
+def test_appointment_flow_complete():
+    """
+    Flujo completo: completado → turno → fecha → hora → completado.
+    """
+    sender = "888111222"
+
+    update_conversation(sender, {
+        "estado": "completado",
+        "nombre": "Barbería Test",
+        "horarios": "Lun-Vie 9-18hs",
+        "servicios": "Corte $5000"
+    })
+
+    # Iniciar flujo de turno
+    response = handle_message(sender, "quiero un turno")
+    assert "día" in response.lower()
+    assert get_conversation(sender).get("estado") == "esperando_fecha_turno"
+
+    # Ingresar fecha
+    response = handle_message(sender, "mañana")
+    assert "hora" in response.lower()
+    assert get_conversation(sender).get("estado") == "esperando_hora_turno"
+
+    # Ingresar hora
+    response = handle_message(sender, "15:00")
+    assert "reservado" in response.lower()
+    assert "mañana" in response
+    assert "15:00" in response
+
+    # Verificar estado volvió a completado
+    conv = get_conversation(sender)
+    assert conv.get("estado") == "completado"
+
+    # Verificar turno guardado
+    assert "turnos" in conv
+    assert len(conv["turnos"]) == 1
+    assert conv["turnos"][0]["fecha"] == "mañana"
+    assert conv["turnos"][0]["hora"] == "15:00"
+
+
+def test_appointment_multiple_appointments():
+    """
+    Usuario puede agendar múltiples turnos.
+    """
+    sender = "888111223"
+
+    update_conversation(sender, {
+        "estado": "completado",
+        "nombre": "Test",
+        "servicios": "Test $100"
+    })
+
+    # Turno 1
+    handle_message(sender, "turno")
+    handle_message(sender, "lunes")
+    handle_message(sender, "10:00")
+
+    # Turno 2
+    handle_message(sender, "reserva")
+    handle_message(sender, "martes")
+    handle_message(sender, "14:00")
+
+    # Verificar 2 turnos guardados
+    conv = get_conversation(sender)
+    assert len(conv["turnos"]) == 2
+    assert conv["turnos"][0]["fecha"] == "lunes"
+    assert conv["turnos"][0]["hora"] == "10:00"
+    assert conv["turnos"][1]["fecha"] == "martes"
+    assert conv["turnos"][1]["hora"] == "14:00"
+
+
+def test_appointment_and_services_coexist():
+    """
+    Consulta de servicios y turnos pueden coexistir.
+    """
+    sender = "888111224"
+
+    update_conversation(sender, {
+        "estado": "completado",
+        "nombre": "Test",
+        "servicios": "Corte $5000"
+    })
+
+    # Consultar servicios
+    response = handle_message(sender, "precio")
+    assert "Corte $5000" in response
+    assert get_conversation(sender).get("estado") == "completado"
+
+    # Pedir turno
+    response = handle_message(sender, "turno")
+    assert "día" in response.lower()
+    assert get_conversation(sender).get("estado") == "esperando_fecha_turno"
+
+
+def test_setup_not_affected_by_appointment_keywords():
+    """
+    CRÍTICO: Keywords de turno NO deben afectar setup.
+    """
+    sender = "888111225"
+
+    # Setup inicial
+    handle_message(sender, "setup")
+    assert get_conversation(sender).get("estado") == "esperando_nombre"
+
+    # Usuario escribe nombre con keyword "turno"
+    response = handle_message(sender, "Centro de Turnos Médicos")
+
+    # Debe procesar como nombre
+    assert "horarios" in response.lower()
+    conv = get_conversation(sender)
+    assert conv.get("estado") == "esperando_horarios"
+    assert conv.get("nombre") == "Centro de Turnos Médicos"
+
+
+def test_appointment_turno_temp_cleaned():
+    """
+    turno_temp debe limpiarse después de completar.
+    """
+    sender = "888111226"
+
+    update_conversation(sender, {
+        "estado": "completado",
+        "nombre": "Test"
+    })
+
+    # Flujo completo
+    handle_message(sender, "turno")
+    handle_message(sender, "viernes")
+    handle_message(sender, "16:00")
+
+    # Verificar turno_temp NO existe
+    conv = get_conversation(sender)
+    assert "turno_temp" not in conv
+
+
+def test_appointment_returns_to_completado():
+    """
+    Después de agendar turno, vuelve a estado completado.
+    """
+    sender = "888111227"
+
+    update_conversation(sender, {
+        "estado": "completado",
+        "nombre": "Test"
+    })
+
+    # Flujo completo
+    handle_message(sender, "cita")
+    handle_message(sender, "sábado")
+    handle_message(sender, "11:00")
+
+    # Debe volver a completado
+    assert get_conversation(sender).get("estado") == "completado"
+
+    # Debe poder pedir otro turno
+    response = handle_message(sender, "otra reserva")
+    assert "día" in response.lower()
+
+
+def test_appointment_case_insensitive_keywords():
+    """
+    Keywords funcionan case-insensitive.
+    """
+    sender = "888111228"
+
+    update_conversation(sender, {"estado": "completado"})
+
+    # Mayúsculas
+    response = handle_message(sender, "TURNO")
+    assert "día" in response.lower()
+
+    # Reset
+    update_conversation(sender, {"estado": "completado"})
+
+    # Mixto
+    response = handle_message(sender, "Reserva")
+    assert "día" in response.lower()
+
+
+def test_completado_fallback_mentions_appointments():
+    """
+    Fallback sin keywords debe mencionar TURNO además de SERVICIOS.
+    """
+    sender = "888111229"
+
+    update_conversation(sender, {
+        "estado": "completado",
+        "nombre": "Test"
+    })
+
+    response = handle_message(sender, "hola")
+
+    assert "servicios" in response.lower() or "precios" in response.lower()
+    assert "turno" in response.lower()

@@ -19,7 +19,9 @@ ESTADOS = {
     "esperando_nombre": "Esperando nombre del negocio",
     "esperando_horarios": "Esperando horarios de atención",
     "esperando_servicios": "Esperando lista de servicios",
-    "completado": "Setup finalizado"
+    "completado": "Setup finalizado",
+    "esperando_fecha_turno": "Esperando día para turno",
+    "esperando_hora_turno": "Esperando hora para turno"
 }
 
 
@@ -73,6 +75,30 @@ def contains_service_query_keyword(text: str) -> bool:
         'sale', 'salen'
     ]
 
+    return any(keyword in normalized for keyword in keywords)
+
+
+def contains_appointment_keyword(text: str) -> bool:
+    """
+    Check if text contains keywords for appointment request.
+
+    Keywords: turno, reserva, cita
+    Case-insensitive and accent-insensitive.
+
+    Args:
+        text: User message to check
+
+    Returns:
+        True if contains any appointment keyword
+
+    Examples:
+        >>> contains_appointment_keyword("quiero un turno")
+        True
+        >>> contains_appointment_keyword("hola")
+        False
+    """
+    normalized = normalize_text(text)
+    keywords = ['turno', 'turnos', 'reserva', 'reservar', 'cita']
     return any(keyword in normalized for keyword in keywords)
 
 
@@ -147,6 +173,14 @@ def handle_message(sender: str, text: str) -> str:
         )
 
     elif estado_actual == "completado":
+        # Check for appointment request (priority over services)
+        if contains_appointment_keyword(text):
+            update_conversation(sender, {
+                **conv,  # Preserve existing data
+                "estado": "esperando_fecha_turno"
+            })
+            return "Perfecto 👍 ¿Para qué día?"
+
         # Check if user is querying for services/prices
         if contains_service_query_keyword(text):
             servicios = conv.get("servicios", "")
@@ -158,7 +192,32 @@ def handle_message(sender: str, text: str) -> str:
                 return "Todavía no tenemos servicios configurados."
 
         # Fallback: guide user on what they can do
-        return "¡Hola! Escribí SERVICIOS para ver nuestros precios."
+        return "¡Hola! Escribí SERVICIOS para ver precios o TURNO para reservar."
+
+    elif estado_actual == "esperando_fecha_turno":
+        # Save appointment date temporarily
+        conv["turno_temp"] = {"fecha": text}
+        conv["estado"] = "esperando_hora_turno"
+        update_conversation(sender, conv)
+        return "¿A qué hora?"
+
+    elif estado_actual == "esperando_hora_turno":
+        # Save complete appointment to list
+        fecha = conv.get("turno_temp", {}).get("fecha", "")
+        turno = {"fecha": fecha, "hora": text}
+
+        # Add to appointments list
+        if "turnos" not in conv:
+            conv["turnos"] = []
+        conv["turnos"].append(turno)
+
+        # Clean temporary data and return to completado
+        if "turno_temp" in conv:
+            del conv["turno_temp"]
+        conv["estado"] = "completado"
+        update_conversation(sender, conv)
+
+        return f"✅ Turno reservado para {fecha} a las {text}"
 
     # Fallback (should never reach here)
     return "Hola 👋 Soy Nordia. Escribí 'setup' para comenzar."
