@@ -6,10 +6,13 @@ Implements defensive programming:
 - Handles corrupted JSON gracefully
 - Creates directories automatically
 - Never crashes on I/O errors
+
+Also includes SQLite persistence for message drafts.
 """
 
 from pathlib import Path
 import json
+from app.models import SessionLocal, MessageDraft
 
 # Path to state file
 STATE_FILE = Path("data/conversations_state.json")
@@ -77,3 +80,43 @@ def load_state() -> dict:
     except Exception as e:
         print(f"[PERSISTENCE ERROR] Failed to load state: {e}")
         return {}
+
+
+def save_message_draft(customer_name: str, intent: str, message: str) -> int:
+    """
+    Guarda draft de mensaje en base de datos SQLite.
+
+    Args:
+        customer_name: Nombre del cliente
+        intent: Intención comercial del usuario
+        message: Mensaje generado
+
+    Returns:
+        ID del draft creado
+
+    Defensive behavior:
+    - Creates database tables if don't exist
+    - Logs errors but doesn't crash
+    - Returns -1 on error
+    """
+    try:
+        db = SessionLocal()
+        draft = MessageDraft(
+            customer_name=customer_name,
+            commercial_intent=intent,
+            generated_message=message
+        )
+        db.add(draft)
+        db.commit()
+        db.refresh(draft)
+        draft_id = draft.id
+        db.close()
+
+        print(f"[PERSISTENCE] ✓ Saved message draft #{draft_id} for {customer_name}")
+        return draft_id
+
+    except Exception as e:
+        print(f"[PERSISTENCE ERROR] Failed to save message draft: {e}")
+        if 'db' in locals():
+            db.close()
+        return -1
