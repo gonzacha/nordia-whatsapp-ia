@@ -49,22 +49,22 @@ def test_activation_happy_path(mock_save_draft):
 
     # Step 1: Usuario escribe "activar cliente"
     response1 = handle_message(sender, "activar cliente")
-    assert "¿nombre del cliente?" in response1.lower()
+    assert "necesito el nombre del cliente" in response1.lower()
     assert get_conversation(sender)["estado"] == "activation_awaiting_name"
 
     # Step 2: Usuario escribe nombre del cliente
     response2 = handle_message(sender, "Juan")
-    assert "perfecto" in response2.lower()
-    assert "¿qué te gustaría decirle a juan?" in response2.lower()
+    assert "¿que mensaje queres enviarle a juan?" in response2.lower()
+    assert "escribi la idea en una frase corta" in response2.lower()
     assert get_conversation(sender)["estado"] == "activation_awaiting_intent"
     assert get_conversation(sender)["activation_context"]["customer_name"] == "Juan"
 
     # Step 3: Usuario escribe intención comercial
     response3 = handle_message(sender, "ofrecer lentes nuevos")
-    assert "te sugiero este mensaje" in response3.lower()
+    assert "borrador listo" in response3.lower()
     assert "hola juan" in response3.lower()
-    assert "enviar" in response3.lower()
-    assert "cancelar" in response3.lower()
+    assert "escribi enviar para guardar" in response3.lower()
+    assert "escribi cancelar para descartar" in response3.lower()
     assert get_conversation(sender)["estado"] == "activation_showing_draft"
 
     # Step 4: Usuario confirma con "enviar"
@@ -152,7 +152,7 @@ def test_activation_intent_too_short():
 
     # Step 3: Proveer intent muy corto
     response = handle_message(sender, "hola")
-    assert "podrías ser un poco más específico" in response.lower()
+    assert "escribi una frase corta con el motivo" in response.lower()
     # Debe quedarse en el mismo estado
     assert get_conversation(sender)["estado"] == "activation_awaiting_intent"
 
@@ -174,9 +174,10 @@ def test_activation_unknown_command_at_draft():
 
     # Step 4: Comando no reconocido
     response = handle_message(sender, "xyz random")
-    assert "no entendí" in response.lower()
+    assert "no entendi" in response.lower()
     assert "enviar" in response.lower()
     assert "cancelar" in response.lower()
+    assert "el borrador se mantiene" in response.lower()
     # Debe quedarse en el mismo estado
     assert get_conversation(sender)["estado"] == "activation_showing_draft"
 

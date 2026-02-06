@@ -17,6 +17,9 @@ from app.state import get_conversation, update_conversation
 from app.validators import validate_nombre, validate_horarios, validate_servicios
 from app.message_generator import generate_commercial_message
 from app.persistence import save_message_draft
+from app.dispatcher import dispatch_signal
+from app.customer_handlers import handle_customer_message
+from app.handler_result import HandlerResult
 
 
 ESTADOS = {
@@ -163,11 +166,29 @@ def handle_message(sender: str, text: str) -> str:
 
     print(f"[ENGINE] {sender} | Estado: {estado_actual} | Mensaje: {text[:50]}")
 
+    def apply_handler_result(result):
+        if isinstance(result, HandlerResult):
+            if result.next_state is not None:
+                updated_conv = {**conv, "estado": result.next_state}
+                update_conversation(sender, updated_conv)
+            return result.reply
+        return result
+
+    # Dispatch signal: classify plane (ADMIN or CUSTOMER)
+    plane = dispatch_signal(sender, text, estado_actual)
+    print(f"[DISPATCHER] sender={sender} state={estado_actual} plane={plane}")
+
+    if plane == "CUSTOMER":
+        pass
+
     # State machine transitions
+    print(f"[ENGINE] state={estado_actual}")
     if estado_actual == "inicial":
         # Check for activation keyword first (before setup)
-        if contains_activation_keyword(text):
+        if plane == "ADMIN" and contains_activation_keyword(text):
+            print("[INTENT] activation")
             # Initialize activation context
+            print(f"[STATE] {estado_actual} -> activation_awaiting_name")
             update_conversation(sender, {
                 "estado": "activation_awaiting_name",
                 "activation_context": {
@@ -177,10 +198,16 @@ def handle_message(sender: str, text: str) -> str:
                     "generated_message": None
                 }
             })
-            return "¿Nombre del cliente?"
+            return (
+                "Necesito el nombre del cliente.\n"
+                "Podes escribir solo el nombre. Ej: Juan Perez.\n"
+                "Si queres salir, escribi CANCELAR."
+            )
 
         # Waiting for setup keyword
-        if text.strip().lower() in ["setup", "/setup"]:
+        if plane == "ADMIN" and text.strip().lower() in ["setup", "/setup"]:
+            print("[INTENT] setup")
+            print(f"[STATE] {estado_actual} -> esperando_nombre")
             update_conversation(sender, {"estado": "esperando_nombre"})
             return "Perfecto 👍 ¿Cómo se llama tu negocio?"
         return "Hola 👋 Soy Nordia. Escribí 'setup' para comenzar."
@@ -193,6 +220,7 @@ def handle_message(sender: str, text: str) -> str:
             return f"❌ {error_msg}\n\n¿Cómo se llama tu negocio?"
 
         # Valid - save and advance to next state
+        print(f"[STATE] {estado_actual} -> esperando_horarios")
         update_conversation(sender, {
             "estado": "esperando_horarios",
             "nombre": text
@@ -207,6 +235,7 @@ def handle_message(sender: str, text: str) -> str:
             return f"❌ {error_msg}\n\n¿Cuáles son tus horarios?"
 
         # Valid - save and advance to next state
+        print(f"[STATE] {estado_actual} -> esperando_servicios")
         conv["estado"] = "esperando_servicios"
         conv["horarios"] = text
         update_conversation(sender, conv)
@@ -220,6 +249,7 @@ def handle_message(sender: str, text: str) -> str:
             return f"❌ {error_msg}\n\n¿Qué servicios ofreces?"
 
         # Valid - save and complete setup
+        print(f"[STATE] {estado_actual} -> completado")
         conv["estado"] = "completado"
         conv["servicios"] = text
         update_conversation(sender, conv)
@@ -233,6 +263,7 @@ def handle_message(sender: str, text: str) -> str:
     elif estado_actual == "completado":
         # Check for appointment request (priority over services)
         if contains_appointment_keyword(text):
+            print(f"[STATE] {estado_actual} -> esperando_fecha_turno")
             update_conversation(sender, {
                 **conv,  # Preserve existing data
                 "estado": "esperando_fecha_turno"
@@ -254,6 +285,7 @@ def handle_message(sender: str, text: str) -> str:
 
     elif estado_actual == "esperando_fecha_turno":
         # Save appointment date temporarily
+        print(f"[STATE] {estado_actual} -> esperando_hora_turno")
         conv["turno_temp"] = {"fecha": text}
         conv["estado"] = "esperando_hora_turno"
         update_conversation(sender, conv)
@@ -272,6 +304,7 @@ def handle_message(sender: str, text: str) -> str:
         # Clean temporary data and return to completado
         if "turno_temp" in conv:
             del conv["turno_temp"]
+        print(f"[STATE] {estado_actual} -> completado")
         conv["estado"] = "completado"
         update_conversation(sender, conv)
 
@@ -284,24 +317,39 @@ def handle_message(sender: str, text: str) -> str:
         # Check for cancellation
         if normalized_input in ["cancelar", "salir", "no"]:
             # Clear activation context and return to inicial
-            update_conversation(sender, {"estado": "inicial"})
-            return "Activación cancelada."
+            print(f"[STATE] {estado_actual} -> inicial")
+            conv = {}
+            result = HandlerResult(
+                reply="Activación cancelada.",
+                next_state="inicial"
+            )
+            return apply_handler_result(result)
 
         # Validate customer name
         if not text.strip():
             # Empty input - stay in same state
-            return "Por favor decime el nombre del cliente."
+            result = HandlerResult(
+                reply="Necesito el nombre del cliente. Escribilo en una sola palabra o frase.",
+                next_state="activation_awaiting_name"
+            )
+            return apply_handler_result(result)
 
         # Valid name - save and advance
         customer_name = text.strip()
         activation_ctx = conv.get("activation_context", {})
         activation_ctx["customer_name"] = customer_name
 
-        conv["estado"] = "activation_awaiting_intent"
+        print(f"[STATE] {estado_actual} -> activation_awaiting_intent")
         conv["activation_context"] = activation_ctx
-        update_conversation(sender, conv)
-
-        return f"Perfecto. ¿Qué te gustaría decirle a {customer_name}?"
+        result = HandlerResult(
+            reply=(
+                f"¿Que mensaje queres enviarle a {customer_name}?\n"
+                "Escribi la idea en una frase corta.\n"
+                "Ejemplos: ofrecer lentes nuevos. Recordar turno."
+            ),
+            next_state="activation_awaiting_intent"
+        )
+        return apply_handler_result(result)
 
     elif estado_actual == "activation_awaiting_intent":
         # Normalize input
@@ -310,18 +358,26 @@ def handle_message(sender: str, text: str) -> str:
         # Check for cancellation
         if normalized_input in ["cancelar", "salir"]:
             # Clear activation context and return to inicial
-            update_conversation(sender, {"estado": "inicial"})
-            return "Activación cancelada."
+            print(f"[STATE] {estado_actual} -> inicial")
+            result = HandlerResult(
+                reply="Activación cancelada.",
+                next_state="inicial"
+            )
+            return apply_handler_result(result)
 
         # Validate intent
         if not text.strip():
             # Empty input
-            return "Contame qué querés decirle."
+            return "Escribi una frase corta con el motivo. Ej: recordar turno o ofrecer lentes nuevos."
 
         # Check word count (need at least 3 words)
         word_count = len(text.strip().split())
         if word_count < 3:
-            return "¿Podrías ser un poco más específico? Ej: 'ofrecer lentes nuevos', 'recordar turno'"
+            result = HandlerResult(
+                reply="Escribi una frase corta con el motivo. Ej: recordar turno o ofrecer lentes nuevos.",
+                next_state="activation_awaiting_intent"
+            )
+            return apply_handler_result(result)
 
         # Valid intent - generate message and show draft
         commercial_intent = text.strip()
@@ -335,17 +391,18 @@ def handle_message(sender: str, text: str) -> str:
         activation_ctx["commercial_intent"] = commercial_intent
         activation_ctx["generated_message"] = generated_message
 
-        conv["estado"] = "activation_showing_draft"
+        print(f"[STATE] {estado_actual} -> activation_showing_draft")
         conv["activation_context"] = activation_ctx
-        update_conversation(sender, conv)
-
-        # Show draft with options
-        return (
-            f"Te sugiero este mensaje:\n\n"
-            f"\"{generated_message}\"\n\n"
-            f"📤 Escribí \"enviar\" para confirmar\n"
-            f"❌ Escribí \"cancelar\" para descartar"
+        result = HandlerResult(
+            reply=(
+                "Borrador listo:\n"
+                f"{generated_message}\n"
+                "Escribi ENVIAR para guardar.\n"
+                "Escribi CANCELAR para descartar."
+            ),
+            next_state="activation_showing_draft"
         )
+        return apply_handler_result(result)
 
     elif estado_actual == "activation_showing_draft":
         # Normalize input
@@ -363,23 +420,36 @@ def handle_message(sender: str, text: str) -> str:
             draft_id = save_message_draft(customer_name, commercial_intent, generated_message)
 
             # Clear activation context and return to inicial
-            update_conversation(sender, {"estado": "inicial"})
-
-            # Success message
-            return (
-                f"✅ Listo. Mensaje preparado para {customer_name}.\n\n"
-                f"El mensaje quedó guardado. Cuando conectemos WhatsApp, "
-                f"se enviará automáticamente."
+            print(f"[STATE] {estado_actual} -> inicial")
+            result = HandlerResult(
+                reply=(
+                    f"✅ Listo. Mensaje preparado para {customer_name}.\n\n"
+                    f"El mensaje quedó guardado. Cuando conectemos WhatsApp, "
+                    f"se enviará automáticamente."
+                ),
+                next_state="inicial"
             )
+            return apply_handler_result(result)
 
         # Check for cancellation
         if normalized_input in ["cancelar", "no", "salir"]:
             # Clear activation context and return to inicial
-            update_conversation(sender, {"estado": "inicial"})
-            return "Activación cancelada."
+            print(f"[STATE] {estado_actual} -> inicial")
+            result = HandlerResult(
+                reply="Activación cancelada.",
+                next_state="inicial"
+            )
+            return apply_handler_result(result)
 
         # Unknown command - repeat options
-        return "No entendí. Escribí 'enviar' para confirmar o 'cancelar' para descartar."
+        result = HandlerResult(
+            reply=(
+                "No entendi. Escribi ENVIAR para guardar o CANCELAR para descartar.\n"
+                "El borrador se mantiene."
+            ),
+            next_state="activation_showing_draft"
+        )
+        return apply_handler_result(result)
 
     # Fallback (should never reach here)
     return "Hola 👋 Soy Nordia. Escribí 'setup' para comenzar."
