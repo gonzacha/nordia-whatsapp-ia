@@ -1,7 +1,7 @@
 # 🔍 Evaluación QA del Estado Actual - Nordia WhatsApp IA
 
 **Fecha:** 2026-01-31
-**Evaluador:** Claude Code (QA Lead Mode)
+**Evaluador:** QA Lead
 **Versión evaluada:** main branch (post token-validation refactor)
 
 ---

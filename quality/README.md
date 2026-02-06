@@ -47,12 +47,12 @@ quality/
 
 ## 🚀 Cómo Usar
 
-### Método 1: Claude Code CLI
+### Método 1: Lectura directa
 ```bash
 # Leer el prompt que necesitas
 cat quality/00_META_QA_LEAD_MODE.json | jq -r '.prompt.role'
 
-# Copiar y pegar el contenido en conversación con Claude Code
+# Usar el contenido como guía de revisión
 ```
 
 ### Método 2: Python Script

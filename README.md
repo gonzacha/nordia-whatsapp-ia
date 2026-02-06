@@ -1,178 +1,118 @@
 # Nordia WhatsApp IA
 
-WhatsApp AI receptionist MVP para gestión de turnos de comercios.
+Sistema conversacional determinístico para activación y reactivación de clientes vía WhatsApp.
 
-## Descripción
+Nordia permite que un administrador genere mensajes comerciales personalizados para clientes inactivos. El sistema gestiona la conversación de forma estructurada, sin LLMs, usando una máquina de estados.
 
-Sistema simple de webhook que recibe mensajes de WhatsApp, detecta el comercio y ejecuta un motor de estados para gestionar reservas de turnos.
+## Caso Principal
 
-## Stack Tecnológico
+**Activación de Cliente Inactivo:**
 
-- Python 3.11
-- FastAPI
-- SQLite
-- SQLAlchemy
-- Uvicorn
+1. Admin envía: `activar cliente`
+2. Sistema pregunta: `¿Nombre del cliente?`
+3. Admin responde: `Juan Pérez`
+4. Sistema pregunta: `¿Qué te gustaría decirle a Juan Pérez?`
+5. Admin responde: `ofrecer lentes nuevos con descuento`
+6. Sistema genera borrador y muestra para confirmación
+7. Admin confirma: `enviar`
+8. Sistema guarda mensaje para envío automático
 
-## Requisitos
+**Resultado:** Mensaje personalizado creado sin escribirlo manualmente, listo para enviar cuando el cliente esté disponible.
 
-- Python 3.11+
-- pip
+## Filosofía
 
-## Setup
+- **Determinismo sobre IA**: State machine explícito, sin LLMs en runtime
+- **Separación de planos**: Admin plane vs Customer plane desde Layer 0 (Signal Dispatcher)
+- **Observabilidad**: Logs estructurados en cada transición
+- **Testing first**: 88 tests unitarios garantizan estabilidad
 
-Clonar el repositorio y crear entorno virtual:
+## Arquitectura
 
-```bash
-git clone https://github.com/gonzacha/nordia-whatsapp-ia.git
-cd nordia-whatsapp-ia
-python -m venv venv
-source venv/bin/activate  # En Windows: venv\Scripts\activate
+```
+Webhook (WhatsApp Cloud API)
+    ↓
+Handler (FastAPI)
+    ↓
+Dispatcher (Layer 0) ← Clasifica: ADMIN o CUSTOMER
+    ↓
+Engine (State Machine)
+    ↓
+Persistence (JSON + SQLite)
 ```
 
-Instalar dependencias:
+**Estados:**
+- **Admin flow**: setup, activation
+- **Customer flow**: servicios, turnos
+
+**Storage:**
+- Conversaciones: `data/conversations_state.json`
+- Message drafts: `data/nordia.db`
+
+## Cómo Correr
 
 ```bash
+# Instalar dependencias
 pip install -r requirements.txt
-```
 
-Configurar variables de entorno:
-
-```bash
+# Configurar .env
 cp .env.example .env
+# Editar WHATSAPP_TOKEN, PHONE_ID, etc.
+
+# Correr servidor
+uvicorn app.main:app --reload
+
+# Endpoint webhook
+POST http://localhost:8000/webhook
 ```
 
-Editar `.env` y agregar tu token de WhatsApp:
-
-```
-WHATSAPP_TOKEN=tu_token_aqui
-WHATSAPP_PHONE_NUMBER_ID=976165072250440
-WHATSAPP_API_VERSION=v22.0
-WHATSAPP_VERIFY_TOKEN=nordia_verify_token_123
-```
-
-Ejecutar servidor:
+## Cómo Correr Tests
 
 ```bash
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+# Todos los tests
+pytest tests/ -v
+
+# Tests específicos
+pytest tests/test_engine.py -v
+pytest tests/test_dispatcher.py -v
+pytest tests/test_activation_flow.py -v
+
+# Con cobertura
+pytest tests/ --cov=app
 ```
-
-El servidor estará corriendo en http://localhost:8000
-
-## Configuración de WhatsApp Cloud API
-
-### 1. Verificar Webhook
-
-Meta enviará una petición GET para verificar tu webhook:
-
-```
-GET /webhook?hub.mode=subscribe&hub.verify_token=nordia_verify_token_123&hub.challenge=CHALLENGE_STRING
-```
-
-El servidor responderá con el challenge si el verify_token coincide.
-
-### 2. Configurar Webhook en Meta
-
-1. Ve a https://developers.facebook.com/apps/
-2. Selecciona tu app
-3. WhatsApp > Configuration
-4. Webhook URL: `https://tu-dominio.com/webhook`
-5. Verify Token: `nordia_verify_token_123`
-6. Suscribirse a: `messages`
-
-### 3. Exponer el servidor local (desarrollo)
-
-Usa ngrok para exponer tu servidor local:
-
-```bash
-ngrok http 8000
-```
-
-Copia la URL HTTPS que te da ngrok (ej: https://abc123.ngrok.io) y úsala como Webhook URL en Meta.
-
-## Uso
-
-### Healthcheck
-
-```bash
-curl http://localhost:8000/
-```
-
-### Enviar mensaje manualmente (testing)
-
-```bash
-curl -X POST https://graph.facebook.com/v22.0/976165072250440/messages \
-  -H "Authorization: Bearer TU_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "messaging_product": "whatsapp",
-    "to": "5491112345678",
-    "type": "text",
-    "text": {
-      "body": "Hola desde la API"
-    }
-  }'
-```
-
-## Comandos Disponibles
-
-### Setup de Comercio
-- `/setup` - Configura tu negocio (nombre, horarios, servicios)
-
-### Gestión de Turnos
-- `hola` - Inicia conversación para sacar turno
-- `cancelar` - Cancela un turno existente
-- `reprogramar` - Reprograma un turno existente
-
-## Flujo de Conversación
-
-### Sacar Turno
-1. Cliente: "hola" → Sistema: "Hola, soy Nordia de [Negocio] 👋 ¿Querés sacar un turno? Respondé SI"
-2. Cliente: "si" → Sistema: "¿Qué servicio te interesa?"
-3. Cliente: "corte" → Sistema: "¿Qué día te gustaría?"
-4. Cliente: "lunes" → Sistema: "¿A qué hora?"
-5. Cliente: "10:00" → Sistema: "¿Cuál es tu nombre?" (valida disponibilidad)
-6. Cliente: "Juan" → Sistema: "Listo, tu turno quedó agendado 👍"
-
-### Cancelar Turno
-1. Cliente: "cancelar" → Sistema: "Decime tu nombre por favor"
-2. Cliente: "Juan" → Sistema: "Tu turno del lunes a las 10:00 fue cancelado ✅"
-
-### Reprogramar Turno
-1. Cliente: "reprogramar" → Sistema: "Decime tu nombre por favor"
-2. Cliente: "Juan" → Sistema: "Perfecto 👍 ¿Qué día te gustaría ahora?"
-3. (Continúa con flujo normal de reserva)
 
 ## Estructura del Proyecto
 
 ```
-.
-├── app/
-│   ├── main.py       # FastAPI application
-│   ├── config.py     # Configuración
-│   ├── models.py     # Modelos SQLAlchemy
-│   ├── engine.py     # State machine
-│   ├── whatsapp.py   # WhatsApp stub
-│   └── prompts.py    # System prompts
-├── data/             # SQLite database
-├── tests/
-├── requirements.txt
-└── README.md
+app/
+├── main.py              # FastAPI app, webhook handler
+├── engine.py            # State machine principal
+├── dispatcher.py        # Signal Dispatcher (Layer 0)
+├── state.py             # State management wrapper
+├── persistence.py       # JSON + SQLite storage
+├── validators.py        # Input validation
+└── message_generator.py # Message drafting
+
+tests/
+├── test_engine.py       # 37 tests
+├── test_dispatcher.py   # 7 tests
+├── test_activation_flow.py # 7 tests
+└── ...                  # 88 tests totales
+
+data/
+├── conversations_state.json  # Estado conversacional
+└── nordia.db                 # Message drafts (SQLite)
 ```
 
-## Características
+## Configuración Admin
 
-- ✅ Integración con WhatsApp Cloud API
-- ✅ Setup de comercio vía WhatsApp
-- ✅ Gestión de turnos (crear, cancelar, reprogramar)
-- ✅ Validación de disponibilidad de horarios
-- ✅ Saludos personalizados con nombre del negocio
-- ✅ State machine simple pero funcional
-- ✅ Persistencia con SQLite
+Editar `app/dispatcher.py`:
 
-## Notas
+```python
+ADMIN_WHITELIST = [
+    "5493794281273"  # Agregar número admin
+]
+```
 
-- Este es un MVP funcional con WhatsApp Cloud API real
-- No incluye autenticación de usuarios
-- No incluye panel de administración
-- No incluye integración con OpenAI (solo flujo hardcodeado)
+## Licencia
+
+MIT
